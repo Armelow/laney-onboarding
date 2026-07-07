@@ -1,4 +1,5 @@
 import { notImplemented } from "./not-implemented"
+import { supabase } from "./supabase"
 
 export interface OrgRepo {
     get(orgId: string): Promise<unknown>
@@ -16,8 +17,18 @@ export interface ReservationRepo {
 }
 
 export const reservationRepo: ReservationRepo = {
-    list: () => notImplemented("reservationRepo.list"),
-    create: () => notImplemented("reservationRepo.create"),
+    list: async (orgId: string) => {
+        const {data, error } = await supabase 
+            .from ("reservation")
+            .select("id, starts_at, status, customer:customer_id(name), resource:resource_id(name)")
+            .eq("org_id", orgId)
+            .order("starts_at")
+        
+        if (error) throw new Error(error.message)
+
+        return data
+    },
+create: () => notImplemented("reservationRepo.create")
 }
 
 export interface CustomerRepo {
@@ -26,7 +37,17 @@ export interface CustomerRepo {
 }
 
 export const customerRepo: CustomerRepo = {
-    list: () => notImplemented("customerRepo.list"),
+    list: async (orgId: string) => {
+        const { data, error } = await supabase
+            .from("customer")
+            .select("id, name, phone")
+            .eq("org_id", orgId)
+            .order("name")
+
+        if (error) throw new Error(error.message)
+
+        return data
+    },
     create: () => notImplemented("customerRepo.create")
 }
 

@@ -92,5 +92,8 @@ alter table reservation enable row level security;
 
 create policy reservation_tmp on reservation using (true);
 
+grant usage on schema public to anon, authenticated;
+grant select on table reservation, customer, resource to anon, authenticated;
+
 create function authorize(perm text) returns boolean
   language sql stable as $$ select true $$;
