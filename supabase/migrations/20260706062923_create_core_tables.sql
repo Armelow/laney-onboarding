@@ -89,11 +89,16 @@ create index on notification (customer_id);
 -- security placeholder
 
 alter table reservation enable row level security;
+alter table notification enable row level security;
 
 create policy reservation_tmp on reservation using (true);
+create policy notification_tmp
+on notification using(true)
+with check (true); -- 향후 org 와 level/role 마다 알림 발송 권한 조건 설정 필요
 
 grant usage on schema public to anon, authenticated;
 grant select on table reservation, customer, resource to anon, authenticated;
+grant insert on table notification to anon, authenticated;
 
 create function authorize(perm text) returns boolean
   language sql stable as $$ select true $$;
