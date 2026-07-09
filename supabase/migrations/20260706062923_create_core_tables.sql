@@ -3,6 +3,13 @@
 create type member_level as enum ('ceo', 'doctor', 'gen manager', 'staff');
 create type notification_status as enum ('pending', 'sent', 'failed');
 create type reservation_status as enum ('booked', 'canceled', 'completed');
+create type app_role as enum ('owner', 'admin', 'staff', 'viewer');
+create type app_permission as enum (
+  'reservation.create',
+  'reservation.delete',
+  'member.manage'
+);
+
 
 -- table
 
@@ -175,3 +182,20 @@ create function send_reservation_reminders() returns void
     '* * * * *',
     $$ select send_reservation_reminders(); $$
   );
+
+-- RBAC
+
+create table role_permissions (
+  role app_role not null,
+  permission app_permission not null,
+  primary key (role, permission)
+);
+
+insert into role_permissions (role, permission)
+values
+  ('owner', 'reservation.create'),
+  ('owner', 'reservation.delete'),
+  ('owner', 'member.manage'),
+  ('admin', 'reservation.create'),
+  ('admin', 'reservation.delete'),
+  ('staff', 'reservation.create');
