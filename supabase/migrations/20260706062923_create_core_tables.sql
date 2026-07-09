@@ -42,8 +42,21 @@ create table reservation (
   starts_at timestamptz not null,
   ends_at timestamptz not null,
   check (ends_at > starts_at),
-  status reservation_status not null default 'booked'
+  status reservation_status not null default 'booked',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+create function set_updated_at() returns trigger
+  language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+
+create trigger reservation_set_updated_at
+  before update on reservation
+  for each row execute function set_updated_at();
 
 create table notification (
   id uuid primary key default gen_random_uuid(),
@@ -64,6 +77,27 @@ create table audit_log (
   created_at timestamptz not null default now(), 
   action text not null 
 );
+
+create function log_reservation_change() returns trigger
+  language plpgsql as $$
+begin
+  insert into audit_log (
+    member_id,
+    reservation_id,
+    action
+  )
+  values (
+    coalesce(new.member_id, old.member_id),
+    coalesce(new.id, old.id),
+    tg_op
+  );
+
+  return coalesce(new, old);
+end $$;
+
+create trigger reservation_audit
+  after insert or update or delete on reservation 
+  for each row execute function log_reservation_change();
 
 -- index
 
