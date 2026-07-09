@@ -136,3 +136,42 @@ grant insert on table notification to anon, authenticated;
 
 create function authorize(perm text) returns boolean
   language sql stable as $$ select true $$;
+
+-- cron 자동 알림 시스템
+
+create extension if not exists pg_cron;
+
+create function send_reservation_reminders() returns void
+  language sql
+  as $$
+    insert into notification (
+      org_id,
+      reservation_id,
+      customer_id,
+      content,
+      starts_at,
+      ends_at,
+      status
+    )
+    select 
+      r.org_id,
+      r.id,
+      r.customer_id,
+      '예약 시작 전 알림',
+      now(),
+      r.starts_at,
+      'sent'
+    from reservation r
+    where r.starts_at between now() and now() + interval '1 hour'
+      and not exists (
+        select 1
+        from notification n
+        where n.reservation_id = r.id
+      );
+  $$;
+
+  select cron.schedule(
+    'reservation-reminders',
+    '* * * * *',
+    $$ select send_reservation_reminders(); $$
+  );
