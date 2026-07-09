@@ -2,20 +2,29 @@
 
 import { useState } from "react"
 import { customerRepo, reservationRepo } from "../lib/repositories"
-import {CHANNELS } from "../lib/channels"
+import { CHANNELS } from "../lib/channels"
+import { DataTable } from "../components/data-table"
+import { 
+  reservationColumns, 
+  type ReservationRow, 
+  } from "./reservations/columns"
+import { 
+  customerColumns, 
+  type CustomerRow 
+  } from "./customers/columns"
 
 const ORG_ID = "00000000-0000-0000-0000-000000000001"
 
 export default function Home () {
-  const [reservations, setReservations] = useState<unknown[]>([])
-  const [customers, setCustomers] = useState<unknown[]>([])
+  const [reservations, setReservations] = useState<ReservationRow[]>([])
+  const [customers, setCustomers] = useState<CustomerRow[]>([])
   const [error, setError] = useState("")
 
   async function loadReservations() {
     try {
       setError("")
       const data = await reservationRepo.list(ORG_ID)
-      setReservations(data)
+      setReservations(data as ReservationRow[])
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))
     }
@@ -25,7 +34,7 @@ export default function Home () {
     try {
       setError("")
       const data = await customerRepo.list(ORG_ID)
-      setCustomers(data)
+      setCustomers(data as CustomerRow[])
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))
     }
@@ -69,10 +78,10 @@ export default function Home () {
       {error && <p>{error}</p>}
 
       <h2>Reservations</h2>
-      <pre>{JSON.stringify(reservations, null, 2)}</pre>
+      <DataTable columns={reservationColumns} data={reservations} />
 
       <h2>Customers</h2>
-      <pre>{JSON.stringify(customers, null, 2)}</pre>
+      <DataTable columns={customerColumns} data={customers} />
     </main>
   )
 }
