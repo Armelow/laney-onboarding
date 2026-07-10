@@ -34,6 +34,7 @@ create table resource (
 create table member (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organization(id),
+  user_id uuid not null,
   name text not null,
   level member_level not null default 'staff'
 );
@@ -132,13 +133,73 @@ create index on notification (customer_id);
 alter table reservation enable row level security;
 alter table notification enable row level security;
 
-create policy reservation_tmp on reservation using (true);
-create policy notification_tmp
-on notification using(true)
-with check (true); -- 향후 org 와 level/role 마다 알림 발송 권한 조건 설정 필요
+  -- 읽기: 내 회사 행만 보임
+create policy reservation_select on reservation 
+  for select using (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )
+  );
+
+  -- 넣기: 내 회사로만 넣을 수 있음 (org 와 level/role 마다 알림 발송 권한)
+create policy reservation_insert on reservation
+  for insert with check (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )
+  );
+
+  -- 수정
+create policy reservation_update on reservation
+  for update using (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )
+  )
+  with check (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )  
+  );
+
+  -- 삭제
+create policy reservation_delete on reservation
+  for update using (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )
+  );
+
+create policy notification_select on notification 
+  for select using (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )
+  );
+
+create policy notification_insert on notification
+  for insert with check (
+    org_id in (
+      select org_id 
+      from member 
+      where user_id = auth.uid()
+    )
+  );
 
 grant usage on schema public to anon, authenticated;
-grant select on table reservation, customer, resource to anon, authenticated;
+grant select on table reservation, customer, resource, member to anon, authenticated;
 grant insert on table notification to anon, authenticated;
 
 create function authorize(perm text) returns boolean
