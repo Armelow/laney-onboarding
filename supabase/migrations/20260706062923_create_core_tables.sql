@@ -6,6 +6,7 @@ create type reservation_status as enum ('booked', 'canceled', 'completed');
 create type app_role as enum ('owner', 'admin', 'staff', 'viewer');
 create type app_permission as enum (
   'reservation.create',
+  'reservation.update',
   'reservation.delete',
   'member.manage'
 );
@@ -36,7 +37,8 @@ create table member (
   org_id uuid not null references organization(id),
   user_id uuid not null,
   name text not null,
-  level member_level not null default 'staff'
+  level member_level not null default 'staff',
+  role app_role not null default 'staff'
 );
 
 create table reservation (
@@ -128,6 +130,64 @@ create index on notification (org_id);
 create index on notification (reservation_id);
 create index on notification (customer_id);
 
+-- RBAC
+
+create table role_permissions (
+  role app_role not null default 'staff',
+  permission app_permission not null,
+  primary key (role, permission)
+);
+
+insert into role_permissions (role, permission)
+values
+  ('owner', 'reservation.create'),
+  ('owner', 'reservation.update'),
+  ('owner', 'reservation.delete'),
+  ('owner', 'member.manage'),
+  ('admin', 'reservation.create'),
+  ('admin', 'reservation.update'),
+  ('admin', 'reservation.delete'),
+  ('staff', 'reservation.create'),
+  ('staff', 'reservation.update');
+
+create function authorize(perm app_permission) returns boolean
+  language sql
+  stable
+  security definer
+  set search_path = public
+  as $$
+    select exists (
+      select 1
+      from role_permissions
+      where role = (auth.jwt() -> 'app_metadata' ->> 'role')::app_role
+        and permission = perm
+    );
+  $$;
+
+create function custom_access_token_hook(event jsonb) returns jsonb
+  language plpgsql
+  stable
+  security definer
+  set search_path = public
+as $$
+declare
+  claims jsonb;
+  user_role app_role;
+begin
+  select role into user_role
+  from member
+  where user_id = (event->>'user_id')::uuid
+  limit 1;
+  claims := jsonb_set(
+    event->'claims',
+    '{app_metadata,role}',
+    to_jsonb(user_role)
+  );
+
+  return jsonb_set(event, '{claims}', claims);
+end;
+$$;
+
 -- security placeholder
 
 alter table reservation enable row level security;
@@ -150,6 +210,7 @@ create policy reservation_insert on reservation
       select org_id 
       from member 
       where user_id = auth.uid()
+    and authorize('reservation.create')
     )
   );
 
@@ -161,6 +222,8 @@ create policy reservation_update on reservation
       from member 
       where user_id = auth.uid()
     )
+    and authorize('reservation.update')
+
   )
   with check (
     org_id in (
@@ -168,16 +231,18 @@ create policy reservation_update on reservation
       from member 
       where user_id = auth.uid()
     )  
+    and authorize('reservation.update')
   );
 
   -- 삭제
 create policy reservation_delete on reservation
-  for update using (
+  for delete using (
     org_id in (
       select org_id 
       from member 
       where user_id = auth.uid()
     )
+    and authorize('reservation.delete')
   );
 
 create policy notification_select on notification 
@@ -201,9 +266,6 @@ create policy notification_insert on notification
 grant usage on schema public to anon, authenticated;
 grant select on table reservation, customer, resource, member to anon, authenticated;
 grant insert on table notification to anon, authenticated;
-
-create function authorize(perm text) returns boolean
-  language sql stable as $$ select true $$;
 
 -- cron 자동 알림 시스템
 
@@ -243,20 +305,3 @@ create function send_reservation_reminders() returns void
     '* * * * *',
     $$ select send_reservation_reminders(); $$
   );
-
--- RBAC
-
-create table role_permissions (
-  role app_role not null,
-  permission app_permission not null,
-  primary key (role, permission)
-);
-
-insert into role_permissions (role, permission)
-values
-  ('owner', 'reservation.create'),
-  ('owner', 'reservation.delete'),
-  ('owner', 'member.manage'),
-  ('admin', 'reservation.create'),
-  ('admin', 'reservation.delete'),
-  ('staff', 'reservation.create');

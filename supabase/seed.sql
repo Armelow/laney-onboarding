@@ -3,10 +3,10 @@ values
     ('00000000-0000-0000-0000-000000000001', 'A Clinic'),
     ('00000000-0000-0000-0000-000000000002', 'B Clinic');
 
-insert into member (id, org_id, user_id, name, level)
+insert into member (id, org_id, user_id, name, level, role)
 values
-    ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '김기명', 'doctor'),
-    ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '이재규', 'doctor');
+    ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '김기명', 'doctor', 'admin'),
+    ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '이재규', 'doctor', 'viewer');
 
 insert into customer (id, org_id, name, phone)
 values
