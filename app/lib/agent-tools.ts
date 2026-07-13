@@ -5,10 +5,12 @@ import {
     resourceRepo,
     reservationRepo,
 } from "./repositories"
+import type { DbClient } from "./supabase"
 
 export function createAgentTools(
     orgId: string,
-    memberId: string
+    memberId: string,
+    db: DbClient
 ) {
     return {
         findCustomer: tool({
@@ -20,7 +22,7 @@ export function createAgentTools(
 
             execute: async ({ name }) => {
                 const customers =
-                    await customerRepo.list(orgId) as Array<{
+                    await customerRepo.list(orgId, db) as Array<{
                         id: string
                         name: string
                     }>
@@ -55,7 +57,7 @@ export function createAgentTools(
 
             execute: async ({ name }) => {
                 const resources =
-                    await resourceRepo.list(orgId) as Array<{
+                    await resourceRepo.list(orgId, db) as Array<{
                         id: string
                         name: string
                     }>
@@ -85,9 +87,9 @@ export function createAgentTools(
             description: "고객과 예약 대상이 확인된 뒤 예약을 만든다",
 
             inputSchema: z.object({
-                customer_id: z.string(),
-                resource_id: z.string(),
-                starts_at: z.string()
+                customer_id: z.string().min(1),
+                resource_id: z.string().min(1),
+                starts_at: z.string().min(1),
             }),
 
             execute: async ({
@@ -95,6 +97,34 @@ export function createAgentTools(
                 resource_id,
                 starts_at,
             }) => {
+                const customers =
+                await customerRepo.list(orgId, db) as Array<{
+                    id: string
+                }>
+
+                if (!customers.some(
+                    (customer) => customer.id === customer_id
+                )) {
+                    return {
+                        ok: false,
+                        message: "존재하지 않는 고객입니다.",
+                    }
+                }
+
+                const resources =
+                    await resourceRepo.list(orgId, db) as Array<{
+                        id: string
+                    }>
+
+                if (!resources.some(
+                    (resource) => resource.id === resource_id
+                )) {
+                    return {
+                        ok: false,
+                        message: "존재하지 않는 예약 대상입니다."
+                    }
+                }
+
                 const startsAt = new Date(starts_at)
 
                 if (Number.isNaN(startsAt.getTime())) {
@@ -115,7 +145,7 @@ export function createAgentTools(
                     resource_id,
                     starts_at: startsAt.toISOString(),
                     ends_at: endsAt,
-                })
+                }, db)
 
                 return {
                     ok: true,

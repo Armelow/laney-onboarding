@@ -1,5 +1,6 @@
 import { notImplemented } from "./not-implemented"
 import { supabase } from "./supabase"
+import type { DbClient } from "./supabase"
 
 export interface OrgRepo {
     get(orgId: string): Promise<unknown>
@@ -21,13 +22,13 @@ export type NewReservation = {
 }
 
 export interface ReservationRepo {
-    list(orgId: string): Promise<unknown[]>
-    create(input: NewReservation): Promise<unknown>
+    list(orgId: string, db?: DbClient): Promise<unknown[]>
+    create(input: NewReservation, db?: DbClient): Promise<unknown>
 }
 
 export const reservationRepo: ReservationRepo = {
-    list: async (orgId: string) => {
-        const {data, error } = await supabase 
+    list: async (orgId: string, db = supabase) => {
+        const {data, error } = await db
             .from ("reservation")
             .select("id, starts_at, status, customer:customer_id(name), resource:resource_id(name)")
             .eq("org_id", orgId)
@@ -38,8 +39,8 @@ export const reservationRepo: ReservationRepo = {
         return data
     },
 
-    create: async (input: NewReservation) => {
-        const { data, error } = await supabase
+    create: async (input: NewReservation, db = supabase) => {
+        const { data, error } = await db
             .from("reservation")
             .insert({
                 org_id: input.org_id,
@@ -59,13 +60,13 @@ export const reservationRepo: ReservationRepo = {
 }
 
 export interface CustomerRepo {
-    list(orgId: string): Promise<unknown[]>
+    list(orgId: string, db?: DbClient): Promise<unknown[]>
     create(input: unknown): Promise<unknown>
 }
 
 export const customerRepo: CustomerRepo = {
-    list: async (orgId: string) => {
-        const { data, error } = await supabase
+    list: async (orgId: string, db = supabase) => {
+        const { data, error } = await db
             .from("customer")
             .select("id, name, phone")
             .eq("org_id", orgId)
@@ -79,13 +80,13 @@ export const customerRepo: CustomerRepo = {
 }
 
 export interface ResourceRepo {
-    list(orgId: string): Promise<unknown[]>
+    list(orgId: string, db?: DbClient): Promise<unknown[]>
     create(input: unknown): Promise<unknown>
 }
 
 export const resourceRepo: ResourceRepo = {
-    list: async (orgId: string) => {
-        const { data, error } = await supabase
+    list: async (orgId: string, db = supabase) => {
+        const { data, error } = await db
             .from("resource")
             .select("id, name")
             .eq("org_id", orgId)

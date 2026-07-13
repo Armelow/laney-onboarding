@@ -1,9 +1,21 @@
 import { generateText, stepCountIs } from "ai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { createAgentTools } from "@/lib/agent-tools"
+import { createSupabaseForRequest } from "@/lib/supabase"
 
 export async function POST(request: Request) {
     const { text, orgId, memberId } = await request.json()
+    const authorization = request.headers.get("authorization")
+    const accessToken = authorization?.replace(/^Bearer\s+/i, "").trim()
+
+    if (!accessToken) {
+        return Response.json(
+            { error: "로그인 토큰이 필요합니다."},
+            { status: 401 }
+        )
+    }
+
+    const requestSupabase = createSupabaseForRequest(accessToken)
 
     if (
         typeof text !== "string" ||
@@ -22,7 +34,11 @@ export async function POST(request: Request) {
     try {
         const result = await generateText({
             model: anthropic("claude-sonnet-4-6"),
-            tools: createAgentTools(orgId, memberId),
+            tools: createAgentTools(
+                orgId,
+                memberId,
+                requestSupabase
+            ),
             stopWhen: stepCountIs(5),
             prompt: `
                 예약 생성 요청이면 다음 순서로 처리해.
